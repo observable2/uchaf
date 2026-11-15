@@ -1,0 +1,711 @@
+<!doctype html>
+<notebook theme="air">
+  <title>Scoring Uchaf</title>
+  <script id="1" type="text/markdown">
+    # Scoring Uchaf
+    #### *Uchaf*, by John Cayley
+    Working notebook for this piece, made from the Scoring Template (version 1.0.0). It measures the verses in the `galley` cell, builds the scores (the recorded read-in, and the generated scores that the player makes anew each time) and exports `spels.json`, `paras.json`, `scores.json`, `config.json` and `measured.json` into `nbks/data/` (see Export). The template notebook documents the markup, the settings and playback.
+
+    This notebook is the *Observable* notebook `@shadoof/uchaf-app`, refactored: see the README for what came from where.
+  </script>
+  <script id="3254" type="module" pinned="">
+    // THE ENGINE comes from this project's own node_modules (package.json names its version), so the
+    // notebook, the player and package.json cannot name different ones. (scoring-template.html imports
+    // it from jsDelivr by tag instead, so that it also runs outside this project.)
+    const { createConfig, configSchema, measuredWith } = await import("scoringthespeltair/config.js")
+    const { typeCss } = await import("scoringthespeltair/typography.js")
+    const { scoreFromTimings, toggleItems, pauseItem } = await import("scoringthespeltair/score.js")
+
+    // createConfig gives every setting the engine's default (see the table of settings below) and
+    // applies only what you override here. It warns in the console about a key it does not know.
+    // The same config, exported (see Export below), is what the player reads, so the notebook and
+    // the player cannot disagree. Paragraphs, fields etc. are not configured here: they come from the
+    // <!--@ ... --> markup in the galley (here two ofld and two para, the verses).
+    const config = createConfig({
+      // --- MEASURE: the type and layout the spels are measured in. The spel data depends on these.
+      fontSizeVw: 2.3,  // the size of the original page (.set { font-size: 2.3vw })
+      fontWeight: 400,  // the original set no weight, so the browser's regular
+      lineHeight: 1.5,  // the original left it to the font ("normal"): about 1.51 for Source Serif 4
+
+      // --- PLAY: read by the engine while the piece plays (override here to try it; export to use it)
+      PRODUCTION: true,   // no console logging from play()
+      charFades: false,   // whole spels fade, not character by character
+      fadeWords: -1,      // the scores do their own fading: they toggle spels on and off
+      cycleScores: true,  // one cycle plays every score in turn (see scores below)
+      interScoreMs: 2000, // the original's interScore, 200 hundredths of a second
+      interCycleMs: 3000, // the original's interCycle (it also waited 1.5 s before the first score; the engine waits this long)
+    })
+  </script>
+  <script id="5891" type="text/html" pinned="">
+    <div id="galley" class="set"><!--@ ofld:v1 para:v1 -->low           cloud
+                                  nameless    bay
+                                                                     janus             river
+    high         fells
+                                  curving       shore
+                                                                     holy               headland
+
+              what  gives  us
+                                          all  we  see?
+
+                              not 
+                                        the   thinking   mouth
+         that  made  this<!--@ /para /ofld -->
+
+    <!--@ ofld:v2 para:v2 -->keening   wind
+                                  rising          lark
+                                                                   companion    voices
+    gentle      waves
+                                  crying         gulls
+                                                                   murmuring    stones
+
+              what  gives  us
+                                          all  we  hear?
+
+                              not 
+                                        the   feeling      hand
+         that  made  this<!--@ /para /ofld --></div>
+  </script>
+  <script id="5895" type="text/html">
+    <!-- the spanned galley, as the maker sees it: clmn:right really offset by config.clmnRight, a rule between ofld's. The same spans, minus the rules, are measured for the spel data. -->
+    <div>${spanned.elem}</div>
+  </script>
+  <script id="5298" type="module" pinned="">
+    // The timing of a recorded reading of the poem: when each word starts and ends, in SECONDS, as the
+    // original notebook had it (the 50 words of both verses, in text order; the first word starts 2.5 s
+    // into the recording, which the score does not use). scoreFromTimings (the engine) turns them into
+    // the read-in scores of the cell below: each word's pause is the time to the start of the next.
+    const timings = [
+          { start: 2.5, end: 2.93, word: "low" },
+          { start: 3, end: 3.63, word: "cloud" },
+          { start: 4.73, end: 5.44, word: "nameless" },
+          { start: 5.5, end: 6.03, word: "bay" },
+          { start: 7.12, end: 7.74, word: "janus" },
+          { start: 7.79, end: 8.16, word: "river" },
+          { start: 10.36, end: 10.74, word: "high" },
+          { start: 10.79, end: 11.64, word: "fells" },
+          { start: 12.76, end: 13.32, word: "curving" },
+          { start: 13.33, end: 13.98, word: "shore" },
+          { start: 15.33, end: 15.91, word: "holy" },
+          { start: 16, end: 16.23, word: "headland" },
+          { start: 19.25, end: 19.67, word: "what" },
+          { start: 19.93, end: 20.32, word: "gives" },
+          { start: 20.32, end: 20.83, word: "us" },
+          { start: 20.98, end: 21.37, word: "all" },
+          { start: 21.38, end: 21.6, word: "we" },
+          { start: 21.67, end: 22.07, word: "see?" },
+          { start: 24.64, end: 24.95, word: "not" },
+          { start: 25.21, end: 25.37, word: "the" },
+          { start: 25.38, end: 26.01, word: "thinking" },
+          { start: 26.02, end: 26.58, word: "mouth" },
+          { start: 27.5, end: 27.7, word: "that" },
+          { start: 27.75, end: 28.17, word: "made" },
+          { start: 28.31, end: 28.98, word: "this" },
+          { start: 32.97, end: 33.56, word: "keening" },
+          { start: 33.57, end: 34.36, word: "wind" },
+          { start: 35.36, end: 36.16, word: "rising" },
+          { start: 36.17, end: 36.9, word: "lark" },
+          { start: 37.95, end: 38.8, word: "companion" },
+          { start: 38.81, end: 39.61, word: "voices" },
+          { start: 42.07, end: 42.62, word: "gentle" },
+          { start: 42.63, end: 43.1, word: "waves" },
+          { start: 44.62, end: 45.23, word: "crying" },
+          { start: 45.24, end: 45.58, word: "gulls" },
+          { start: 47.35, end: 47.98, word: "murmuring" },
+          { start: 48.03, end: 48.57, word: "stones" },
+          { start: 51.7, end: 52, word: "what" },
+          { start: 52.39, end: 52.8, word: "gives" },
+          { start: 52.8, end: 52.98, word: "us" },
+          { start: 53.53, end: 53.97, word: "all" },
+          { start: 53.98, end: 54.29, word: "we" },
+          { start: 54.3, end: 54.9, word: "hear?" },
+          { start: 56.91, end: 56.96, word: "not" },
+          { start: 57.52, end: 57.57, word: "the" },
+          { start: 57.64, end: 58.18, word: "feeling" },
+          { start: 58.34, end: 59.07, word: "hand" },
+          { start: 59.99, end: 60.19, word: "that" },
+          { start: 60.24, end: 60.66, word: "made" },
+          { start: 60.8, end: 61.47, word: "this" }
+        ]
+  </script>
+  <script id="5741" type="module" pinned="">
+    // The score of the piece: scores.json is a sequence of scores that the cycle plays in turn (config.cycleScores).
+    // Each is an array of { id, pause } items (pause in ms), or the name of a generator (see nbks/data/generators.js),
+    // which the player calls each time that score comes round, so a shuffled score is a new one every time.
+    //
+    // The two read-ins use the timings of the recording: the pause of each word is the time to the start of
+    // the next, plus 200 ms (the original's "slower": 20 hundredths of a second added to every pause).
+    // The generators read their pauses from these two scores, so they must stay scores 0 and 3 (TIMED in generators.js).
+    const [verse1, verse2] = paraList // the spel ids of the verses, in text order
+    const readIn1 = scoreFromTimings(timings.slice(0, verse1.length), { ids: verse1, extraMs: 200 })
+    const readIn2 = scoreFromTimings(timings.slice(verse1.length), { ids: verse2, extraMs: 200 })
+    // the words must be the recording's: a check that the galley and the timings are of the same text
+    for (const [i, { id }] of [...readIn1, ...readIn2].entries())
+      if (spels.get(id).string !== timings[i].word) throw new Error(`Spel ${id} is not the recorded word "${timings[i].word}"`)
+    const stanza1 = (readIn) => readIn.slice(0, 12) // the first stanza: six pairs
+    const breath = [pauseItem(100)] // a score of its own: a little more silence between two scores
+    const scores = [
+      readIn1,                                      // 0  verse 1 is read in,
+      toggleItems(readIn1),                         // 1  and fades all at once
+      breath,                                       // 2
+      readIn2,                                      // 3  verse 2 is read in,
+      toggleItems(readIn2),                         // 4  and fades
+      breath,                                       // 5
+      { generator: "jjnn", args: [1] },             // 6  new pairs of verse 1's modifiers and nouns, shown and faded in turn
+      { generator: "jjnn", args: [2] },             // 7  and of verse 2's
+      breath,                                       // 8
+      "chorus",                                     // 9  the second stanza, with a different sense and a different pair
+      breath,                                       // 10
+      { generator: "vshuffle", args: [1] },         // 11 verse 1's first stanza, shuffled,
+      { generator: "vshuffle", args: [2, true] },   // 12 replaced by verse 2's, word by word,
+      toggleItems(stanza1(readIn2)),                // 13 which fade
+      { generator: "vshuffle", args: [2] },         // 14 verse 2's again, shuffled,
+      { generator: "vshuffle", args: [1, true] },   // 15 replaced by verse 1's,
+      toggleItems(stanza1(readIn1)),                // 16 which fade
+      breath,                                       // 17
+      "chorus",                                     // 18
+      breath                                        // 19
+    ]
+  </script>
+  <script id="6001" type="text/markdown">
+    ---
+    ### Settings and Export
+    Every setting the engine knows, where it applies (`measure`: changes the measured positions; `play`: read by the engine; `page`: applied by the page's CSS), the engine's default, and the value this notebook uses (a ● marks one you have changed). Override in the `config` cell at the top.
+  </script>
+  <script id="6002" type="module" pinned="">
+    // every setting, its scope, the engine's default and the value in use
+    Inputs.table(Object.entries(configSchema).map(([key, d]) => ({
+      key, scope: d.scope, default: d.default, value: config[key],
+      changed: JSON.stringify(config[key]) !== JSON.stringify(d.default) ? "●" : "", doc: d.doc
+    })), { rows: 30, layout: "auto" })
+  </script>
+  <script id="6003" type="module" pinned="">
+    // Export: the files the player reads, in the shape its pages read them. Download them into the
+    // project's nbks/data/ (or the piece's own folder there). config.json is the whole config above:
+    // the player makes its own from it (createConfig) and takes its type CSS from it (typeCss), so
+    // nothing is set twice. measured.json is only for a player page that keeps its own CSS: pass it
+    // to mount() and the player warns if its type differs from what the spels were measured at.
+    const piece = {
+      "spels.json": Array.from(spels.entries()), // [[id, spel], ...]: the player builds a Map from it
+      "paras.json": paraList, // [[spel ids of para 1], [para 2], ...] in text order
+      "scores.json": scores, // [[{id, pause}, ...] per para]
+      "config.json": JSON.parse(JSON.stringify(config)),
+      "measured.json": measuredWith(config)
+    }
+    const links = Object.entries(piece).map(([name, data]) => {
+      const url = URL.createObjectURL(new Blob([JSON.stringify(data)], { type: "application/json" }))
+      invalidation.then(() => URL.revokeObjectURL(url))
+      return html`<a href="${url}" download="${name}">${name}</a>`
+    })
+    display(html`<p>Download: ${links.flatMap((a, i) => (i ? [" · ", a] : [a]))}</p>`)
+  </script>
+  <script id="2861" type="module" pinned="">
+    const layout = mapParaSpels(spanned)
+
+    // ALTERNATE SPELS. Five spels of this piece have no place in the text of the galley: they stand in the
+    // place of another spel, to be shown instead of it (a different sense for "see?", other things that
+    // think and speak for "thinking mouth"). Each alternate takes the box of the spel it stands in for
+    // (found by its text in verse 1), with its own string, and its id and index continue the series.
+    // It belongs to no para, so it is not in paraList; the generators and scores name it by its id.
+    const alternates = [
+      { string: "know?", at: "see?" },
+      { string: "knowing", at: "thinking" },
+      { string: "reading", at: "thinking" },
+      { string: "ear", at: "mouth" },
+      { string: "eye", at: "mouth" }
+    ]
+    const spels = (() => {
+      const all = new Map(layout.spels)
+      const inVerse1 = layout.ofld.v1.map((id) => layout.spels.get(id))
+      for (const { string, at } of alternates) {
+        const base = inVerse1.find((s) => s.string === at)
+        if (!base) throw new Error(`No spel "${at}" in verse 1 for the alternate "${string}"`)
+        const index = all.size
+        const id = `${slugify(string)}-${index}`
+        // the base's html with the alternate's id and string (the span's own tag has no ">" inside it)
+        const html = base.html.replace(/^(<span id=")[^"]*(".*?>)[\s\S]*(<\/span>)$/, `$1${id}$2${string}$3`)
+        all.set(id, { ...base, id, index, string, start: null, end: null, implicit: false, para: null, alternateOf: base.id, html })
+      }
+      return all
+    })()
+  </script>
+  <script id="5875" type="module" pinned="">
+    // paragraph name -> array of spel ids; names come from the markup (para:name) or are para1, para2, ...
+    const paras = layout.para
+    // the paragraphs as an array of arrays of spel ids, in text order: the shape the player's paras.json has
+    const paraList = layout.order.para.map((name) => paras[name])
+  </script>
+  <script id="5892" type="module" pinned="">
+    // Check: one box per ofld, each spel placed (by its html) at leftvw/topvw
+    // with its bounding box outlined; the table lists the recorded data.
+    const preview = document.createElement("div");
+    preview.innerHTML = Object.entries(layout.ofld).map(([name, ids]) => {
+      const list = ids.map((id) => spels.get(id));
+      const height = Math.max(...list.map((s) => s.topvw + s.heightvw)) + 2;
+      const inner = list.map((s) =>
+        `<div style="position:absolute;left:${s.leftvw}vw;top:${s.topvw}vw;width:${s.widthvw}vw;height:${s.heightvw}vw;outline:1px solid rgba(255,0,0,.4)"></div>`
+        + s.html.replace('class="spel"', 'class="spel visible"')).join("");
+      return `<div><b>ofld ${name}</b><div class="set" style="height:${height}vw;outline:1px dotted gray;margin-bottom:1vw">${inner}</div></div>`;
+    }).join("");
+    display(preview);
+    display(Inputs.table(Array.from(spels.values(), ({ id, string, para, clmn, ofld, leftvw, topvw, widthvw, heightvw }) => ({ id, string, para, clmn, ofld, leftvw, topvw, widthvw, heightvw }))));
+  </script>
+  <script id="16" type="text/html" pinned="" output="css">
+    <style>
+
+      /* config.fontFamily ('Source Serif 4') is loaded from Google Fonts by the fontReady cell */
+      html {
+        margin: 2vw;
+      }
+
+      /* the type (family, size, weight, line height, ligatures, optical size) and the fade times
+         (--spel-fade, --char-fade, --field-fade) all come from the config, through the engine's
+         typeCss, and so are the same in the player, which calls typeCss with its own selector */
+      ${typeCss(config, ".set")}
+
+      .set {
+        white-space: pre;
+        position: relative;
+      }
+
+      /* horizontal rule drawn by addSpansTo between ofld's (display only; not measured) */
+      .ofld-rule {
+        border: 0;
+        border-top: 1px solid gray;
+        height: 0;
+        margin-bottom: 0.4em;
+      }
+
+      .spel {
+        position: absolute;
+        opacity: 0;
+        transition: all var(--spel-fade) ease-in-out;
+      }
+
+      .spel.visible {
+        opacity: 1;
+      }
+
+      /* with charFades each spel is split into .char spans (the engine's splitIntoChars), which carry the fade */
+      .char {
+        opacity: 0;
+        transition: all var(--char-fade) ease-in-out;
+      }
+
+      .char.visible {
+        opacity: 1;
+      }
+
+      /* an "effect" other than "visible" in a score's settings (see Playback in scoring-template.html) is a class the
+         page defines: this one lights up text that is already visible */
+      .glow {
+        color: lemonchiffon;
+        text-shadow: 0 -0.3ch 0.5ch white, 0 0.3ch 0.5ch white,
+          0 -0.6ch 1ch white, 0 0.6ch 1ch white;
+      }
+
+    </style>
+  </script>
+  <script id="4309" type="text/markdown">
+    ---
+    ### Machinery
+    The cells below measure the galley and need no editing.
+  </script>
+  <script id="582" type="module" pinned="">
+    // `galley` tracks the element with id="galley" (defined in the separate HTML cell).
+    // It emits only once the element exists, and emits again whenever the HTML cell
+    // re-renders and produces a new node, so dependent cells always see a live element.
+    const galley = Generators.observe((notify) => {
+      let current = null;
+      const check = () => {
+        const el = document.getElementById("galley");
+        if (el && el !== current) notify((current = el));
+      };
+      const observer = new MutationObserver(check);
+      observer.observe(document.body, {childList: true, subtree: true});
+      check();
+      invalidation.then(() => observer.disconnect());
+    });
+  </script>
+  <script id="4219" type="module" pinned="">
+    // fonts must be loaded before anything is measured (see fontReady), including
+    // the subsets that this galley's own characters need
+    await fontReady
+    await Promise.all(faces.map((f) =>
+      document.fonts.load(`${f}16px "${fontFamily}"`, galley.textContent)))
+    const spanned = addSpansTo(galley)
+  </script>
+  <script id="4401" type="module" pinned="">
+    // Measures the spanned galley and groups its spels by the markup's containment.
+    // Returns { text, spels: Map(id -> spel), order, para, clmn, ofld, sctn, chpt }
+    // where each of the last five is { name: [spel ids in text order] } and order is
+    // { para: [names in text order], clmn: [...], ... }.
+    const mapParaSpels = (spanned) => {
+      const spels = new Map();
+      const groups = { para: {}, clmn: {}, ofld: {}, sctn: {}, chpt: {} };
+      // names in text order: an object's keys are not (integer-like names such as "2" and "10" sort first)
+      const order = Object.fromEntries(Object.keys(groups).map((k) => [k, []]));
+      for (const spel of getSpelArray(spanned)) {
+        spels.set(spel.id, spel);
+        for (const kind of Object.keys(groups))
+          if (spel[kind]) {
+            if (!(spel[kind] in groups[kind])) order[kind].push(spel[kind]);
+            (groups[kind][spel[kind]] ??= []).push(spel.id);
+          }
+      }
+      return { text: spanned.parsed.text, spels, order, ...groups };
+    }
+  </script>
+  <script id="844" type="module" pinned="">
+    // Builds the array of spel objects from the output of addSpansTo(): { elem, parsed }.
+    // leftvw/topvw/widthvw/heightvw are the BOUNDING BOX of the spel's rendered span in vw, relative
+    // to its container (ink is not measured: glyph overhangs are the font's business, and are dealt
+    // with only if a piece needs them):
+    //   top  : 0 is the top of the top-most spel box of the spel's ofld (the whole galley is one
+    //          ofld, called "galley", when the markup names none); a clmn starts again at 0, so
+    //          a spel's top is its distance from the top of its own clmn
+    //   left : the box's distance from the galley's left edge, plus the offset of the spel's clmn
+    //          (config.clmnRight for a clmn named "right", otherwise 0)
+    // html is an absolutely positioned span that renders the spel at exactly leftvw/topvw. It carries
+    // white-space:pre (so the spel's own spaces and line breaks are kept wherever it is played) and,
+    // for a spel of several lines, text-indent (indentvw: how far its first line starts to the right
+    // of the box's left edge, so the lines fall where they do in the galley). Spels keep their inner markup.
+    const r3 = (x) => Math.round(x * 1000) / 1000;
+    // Slug of a spel's text, for its id: lowercase, accents folded (é -> e), apostrophes and quotes
+    // dropped (Cobbett’s -> cobbetts), any other run of characters that are not letters or digits
+    // (spaces, punctuation, line breaks: a multi-word spel is one slug) becomes one hyphen, none at
+    // the ends. Letters of any script are kept, so a non-Latin spel doesn't slug to nothing.
+    const slugify = (text) =>
+      text.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase()
+        .replace(/['\u2018\u2019\u201c\u201d"`]/g, "")
+        .replace(/[^\p{L}\p{N}]+/gu, "-").replace(/^-|-$/g, "");
+    const clmnOffset = (name) => (name === "right" ? config.clmnRight : 0);
+
+    // Box of one spel span (px, relative to the container's top left), as an absolutely
+    // positioned (blockified) copy of the span would have it.
+    const measureSpel = (span, boxRect, ctx) => {
+      const cs = getComputedStyle(span);
+      ctx.font = `${cs.fontStyle} ${cs.fontWeight} ${cs.fontSize} ${cs.fontFamily}`;
+      const strut = ctx.measureText("x");
+      const lh = parseFloat(cs.lineHeight); // NaN for "normal"
+      const halfLeading = Number.isNaN(lh)
+        ? 0
+        : (lh - (strut.fontBoundingBoxAscent + strut.fontBoundingBoxDescent)) / 2;
+      const rects = Array.from(span.getClientRects()); // one per line of a multi-line spel
+      const left = Math.min(...rects.map((r) => r.left));
+      const right = Math.max(...rects.map((r) => r.right));
+      const top = rects[0].top - halfLeading; // the inline box sits half the leading below the block's top
+      const bottom = rects[rects.length - 1].bottom + halfLeading;
+      // indent: where the first line starts, from the box's left edge (later lines start at the edge)
+      return { left: left - boxRect.left, top: top - boxRect.top, width: right - left, height: bottom - top, indent: rects[0].left - left };
+    };
+
+    // Boxes (px) of all the spel spans of a spanned element, in order. A copy is measured in a
+    // hidden, attached host (offsets need a rendered element); the spans are positioned by vw font
+    // sizes, so the host's width doesn't matter. The copy has no ofld rules, so vertical positions
+    // are those of the unbroken text, "virtually".
+    const measureBoxes = (elem) => {
+      const host = document.createElement("div");
+      host.style.cssText = "position:absolute;left:0;top:0;visibility:hidden;pointer-events:none";
+      const box = elem.cloneNode(true);
+      box.querySelectorAll(".ofld-rule").forEach((hr) => hr.remove());
+      host.append(box);
+      document.body.append(host);
+      try {
+        const ctx = document.createElement("canvas").getContext("2d");
+        const boxRect = box.getBoundingClientRect();
+        return Array.from(box.querySelectorAll("span.spelm"), (span) => measureSpel(span, boxRect, ctx));
+      } finally {
+        host.remove();
+      }
+    };
+
+    const getSpelArray = (spanned) => {
+      const { elem, parsed, cont } = spanned;
+      // addSpansTo has already moved every clmn up to the top of its ofld, so these are actual
+      const measured = measureBoxes(elem);
+      // inner markup of each spel (rich markup survives; stray markup comments don't)
+      const comments = new RegExp("<!" + "--[\\s\\S]*?--" + ">", "g");
+      // and the elements that enclose it in the galley (e.g. <em>), cloned around it
+      const inners = Array.from(elem.querySelectorAll("span.spelm"), (s) => {
+        let inner = s.innerHTML.replace(comments, "");
+        for (let a = s.parentElement; a && a !== elem; a = a.parentElement) {
+          if (a.classList.contains("clmn-lift")) continue; // display wrapper, not the spel's markup
+          const tag = a.cloneNode(false).outerHTML;
+          inner = tag.slice(0, tag.lastIndexOf("</")) + inner + tag.slice(tag.lastIndexOf("</"));
+        }
+        return inner;
+      });
+      const spels = parsed.spel.map((p, i) => ({ ...p, ...cont[i], ofld: cont[i].ofld ?? "galley" }));
+      // ofld origins: the top of each ofld's top-most box (each clmn's top-most box is already there)
+      const origin = new Map();
+      spels.forEach((s, i) => origin.set(s.ofld, Math.min(origin.get(s.ofld) ?? Infinity, measured[i].top)));
+      return spels.map((s, i) => {
+        const m = measured[i];
+        // slug-number; the number keeps ids unique. An id that would start with a digit (a spel
+        // like "1984", or one with no letters at all) gets "s-" so it can be used as #id in css
+        const base = [slugify(s.text), i].filter((x) => x !== "").join("-");
+        const id = /^\d/.test(base) ? `s-${base}` : base;
+        const leftvw = r3(pxToVw(m.left)); // actual: addSpansTo already offset the clmn
+        const topvw = r3(pxToVw(m.top - origin.get(s.ofld)));
+        const indentvw = r3(pxToVw(m.indent));
+        const inner = inners[i];
+        const attr = id.replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;");
+        return {
+          id, index: i, string: s.text, start: s.start, end: s.end, implicit: !!s.implicit,
+          para: s.para, clmn: s.clmn, ofld: s.ofld, sctn: s.sctn, chpt: s.chpt,
+          leftvw, topvw, widthvw: r3(pxToVw(m.width)), heightvw: r3(pxToVw(m.height)), indentvw,
+          html: `<span id="${attr}" class="spel" style="left:${leftvw}vw;top:${topvw}vw;white-space:pre${indentvw ? `;text-indent:${indentvw}vw` : ""}">${inner}</span>`
+        };
+      });
+    }
+  </script>
+  <script id="974" type="module" pinned="">
+    // Wraps the text range [start, end) (character offsets into the element's text, comments
+    // excluded, as parseMarkup counts them) in <span class="spelm" data-i="i">. The range may
+    // cross element boundaries: partly covered elements are split, so rich markup is kept.
+    const wrapSpel = (root, start, end, i, style = "") => {
+      const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+      let pos = 0, sNode, sOff, eNode, eOff;
+      while (walker.nextNode()) {
+        const n = walker.currentNode, len = n.data.length;
+        if (!sNode && start < pos + len) { sNode = n; sOff = start - pos; }
+        if (sNode && end <= pos + len) { eNode = n; eOff = end - pos; break; }
+        pos += len;
+      }
+      if (!eNode) throw new Error(`Spel ${i} [${start}, ${end}) not found in the text`);
+      const range = document.createRange();
+      range.setStart(sNode, sOff);
+      range.setEnd(eNode, eOff);
+      const span = document.createElement("span");
+      span.className = "spelm";
+      span.dataset.i = i;
+      if (style) span.style.cssText = style;
+      span.append(range.extractContents());
+      range.insertNode(span);
+    };
+
+    // Wraps the text range [start, end) in `wrapper` (an element). Like wrapSpel, but a boundary
+    // that falls at the edge of a spel span goes outside it, so spels are never split.
+    const wrapRange = (root, start, end, wrapper) => {
+      const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+      let pos = 0, sNode, sOff, eNode, eOff;
+      while (walker.nextNode()) {
+        const n = walker.currentNode, len = n.data.length;
+        if (!sNode && start < pos + len) { sNode = n; sOff = start - pos; }
+        if (sNode && end <= pos + len) { eNode = n; eOff = end - pos; break; }
+        pos += len;
+      }
+      if (!eNode) throw new Error(`Range [${start}, ${end}) not found in the text`);
+      const textEnd = (spel, first) => { // first or last text node of a spel span
+        const w = document.createTreeWalker(spel, NodeFilter.SHOW_TEXT);
+        let node = null;
+        while (w.nextNode()) { node = w.currentNode; if (first) break; }
+        return node;
+      };
+      const range = document.createRange();
+      const sSpel = sNode.parentElement.closest("span.spelm");
+      const eSpel = eNode.parentElement.closest("span.spelm");
+      if (sSpel && sOff === 0 && textEnd(sSpel, true) === sNode) range.setStartBefore(sSpel);
+      else range.setStart(sNode, sOff);
+      if (eSpel && eOff === eNode.data.length && textEnd(eSpel, false) === eNode) range.setEndAfter(eSpel);
+      else range.setEnd(eNode, eOff);
+      wrapper.append(range.extractContents());
+      range.insertNode(wrapper);
+    };
+
+    // Inserts `node` at character offset `offset` of the element's text (between text nodes).
+    const insertAtOffset = (root, offset, node) => {
+      const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+      let pos = 0;
+      while (walker.nextNode()) {
+        const n = walker.currentNode;
+        if (offset < pos + n.data.length) {
+          const range = document.createRange();
+          range.setStart(n, offset - pos);
+          range.collapse(true);
+          return range.insertNode(node);
+        }
+        pos += n.data.length;
+      }
+      root.append(node);
+    };
+
+    // Takes the galley element (an element of class "set" holding text and <!--@ ... --> markup)
+    // and returns { elem, parsed, cont }: parsed is parseMarkup's result for the galley, cont is
+    // its containment, and elem is a copy of the galley for display, in which
+    //   - every spel, explicit or implicit, is wrapped in <span class="spelm">;
+    //   - spels in a clmn are really offset, by config.clmnRight for clmn:right (so their
+    //     horizontal measurements are actual ones);
+    //   - each clmn is moved up (in an absolutely positioned wrapper, so no blank space is left)
+    //     until its top-most spel box is level with the top of its ofld: like an ofld, a clmn
+    //     starts again at 0. The spels' vertical
+    //     measurements, taken from this element, are therefore actual ones;
+    //   - every ofld after the first is preceded by <hr class="ofld-rule">. The rules are for
+    //     the maker only: getSpelArray measures without them, so that vertical positions stay
+    //     "virtual" (each ofld measured from the top of its top-most spel box).
+    const addSpansTo = (galleyElem) => {
+      const parsed = parseMarkup(galleyElem);
+      const cont = containment(parsed);
+      const elem = galleyElem.cloneNode(true);
+      elem.removeAttribute("id");
+      // rules first: they only split text nodes, never change the text
+      parsed.ofld.filter((o) => parsed.spel.length && o.start > parsed.spel[0].start).forEach((o) => {
+        const hr = document.createElement("hr");
+        hr.className = "ofld-rule";
+        insertAtOffset(elem, o.start, hr);
+      });
+      parsed.spel.forEach((s, i) => {
+        const shift = clmnOffset(cont[i].clmn);
+        wrapSpel(elem, s.start, s.end, i, shift ? `position:relative;left:${shift}vw` : "");
+      });
+      // a new clmn resets the top, as a new ofld does: measure the unshifted text, then lift
+      // each clmn by the distance between its own top and that of its ofld. The lifted clmn is
+      // wrapped in an absolutely positioned <div class="clmn-lift">, so it leaves the flow and
+      // leaves no blank lines behind (its lines still break as before; it is anchored at the
+      // left edge of the galley).
+      const boxes = measureBoxes(elem);
+      const ofldTop = new Map();
+      cont.forEach((c, i) => {
+        const o = c.ofld ?? "galley";
+        ofldTop.set(o, Math.min(ofldTop.get(o) ?? Infinity, boxes[i].top));
+      });
+      const lifts = parsed.clmn.map((e, j) => {
+        const key = e.name ?? `clmn${j + 1}`;
+        const mine = cont.map((c, i) => i).filter((i) => cont[i].clmn === key
+          && parsed.spel[i].start >= e.start && parsed.spel[i].end <= e.end);
+        if (!mine.length) return { e, lift: 0 };
+        const top = Math.min(...mine.map((i) => boxes[i].top));
+        return { e, lift: top - ofldTop.get(cont[mine[0]].ofld ?? "galley") };
+      });
+      lifts.filter(({ lift }) => lift > 0).sort((a, b) => a.e.start - b.e.start || b.e.end - a.e.end)
+        .forEach(({ e, lift }) => {
+          const div = document.createElement("div");
+          div.className = "clmn-lift";
+          div.style.cssText = `position:absolute;left:0;margin-top:${-r3(pxToVw(lift))}vw`;
+          wrapRange(elem, e.start, e.end, div);
+        });
+      return { elem, parsed, cont };
+    }
+  </script>
+  <script id="5881" type="module" pinned="">
+    // Markup syntax: <!--@ token token ... -->
+    //   open:  kind or kind:name   e.g. para, clmn:left
+    //   close: /kind               e.g. /para
+    // kinds: spel, para, clmn, ofld, sctn, chpt
+    // Several tokens may share a comment, so boundaries can coincide.
+    // Within one comment all closes are applied before all opens, so
+    // "/para para" ends one para and starts the next, whatever the order.
+    const markupKinds = ["spel", "para", "clmn", "ofld", "sctn", "chpt"];
+
+    const parseMarkup = (root) => {
+      const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT | NodeFilter.SHOW_COMMENT);
+      const open = Object.fromEntries(markupKinds.map((k) => [k, []]));
+      const ents = Object.fromEntries(markupKinds.map((k) => [k, []]));
+      let text = "";
+      while (walker.nextNode()) {
+        const n = walker.currentNode;
+        if (n.nodeType === Node.TEXT_NODE) { text += n.data; continue; }
+        if (!n.data.startsWith("@")) continue; // ordinary comment
+        const toks = n.data.slice(1).trim().split(/\s+/).filter(Boolean)
+          .map((t) => {
+            const m = t.match(/^(\/)?(\w+)(?::(.+))?$/);
+            if (!m || !markupKinds.includes(m[2])) throw new Error(`Bad markup token: ${t}`);
+            return { close: !!m[1], kind: m[2], name: m[3] };
+          })
+          .sort((a, b) => b.close - a.close); // closes first
+        for (const t of toks) {
+          if (t.close) {
+            const o = open[t.kind].pop();
+            if (!o) throw new Error(`Unmatched /${t.kind} at offset ${text.length}`);
+            ents[t.kind].push({ kind: t.kind, name: o.name, start: o.start, end: text.length, text: text.slice(o.start, text.length) });
+          } else open[t.kind].push({ name: t.name, start: text.length });
+        }
+      }
+      for (const k of markupKinds) if (open[k].length) throw new Error(`Unclosed ${k}`);
+
+      // implicit spels: whitespace-separated runs outside explicit spels
+      const explicit = ents.spel.sort((a, b) => a.start - b.start);
+      const all = [...explicit];
+      let pos = 0;
+      const addGap = (from, to) => {
+        for (const m of text.slice(from, to).matchAll(/\S+/g))
+          all.push({ kind: "spel", start: from + m.index, end: from + m.index + m[0].length, text: m[0], implicit: true });
+      };
+      for (const s of explicit) { addGap(pos, s.start); pos = Math.max(pos, s.end); }
+      addGap(pos, text.length);
+      ents.spel = all.sort((a, b) => a.start - b.start || a.end - b.end);
+      for (const k of markupKinds) ents[k].sort((a, b) => a.start - b.start || a.end - b.end);
+      return { text, ...ents };
+    }
+  </script>
+  <script id="5890" type="module" pinned="">
+    // Containment: for every spel (in parsed.spel order) the innermost para, clmn, ofld, sctn and
+    // chpt whose range contains it, or null. Unnamed entities are called kind1, kind2, ... in text
+    // order (para1, para2, ...), so named and unnamed ones can be mixed.
+    const containment = (parsed) => {
+      const kinds = ["para", "clmn", "ofld", "sctn", "chpt"];
+      const keyed = Object.fromEntries(kinds.map((k) => [k, parsed[k].map((e, i) => ({ ...e, key: e.name ?? `${k}${i + 1}` }))]));
+      const innermost = (k, s) => keyed[k].reduce((best, e) =>
+        e.start <= s.start && s.end <= e.end && (!best || e.end - e.start <= best.end - best.start) ? e : best, null);
+      return parsed.spel.map((s) => Object.fromEntries(kinds.map((k) => [k, innermost(k, s)?.key ?? null])));
+    }
+  </script>
+  <script id="1051" type="module">
+    // converts pixel measurements to the more flexible vw (viewport width) measurement of css
+    const pxToVw = (px) => px * (100 / vWidth)
+  </script>
+  <script id="5514" type="module" pinned="">
+    // The width in px of 100vw, asked of the browser itself (a probe element 100vw wide), so it
+    // is exactly what css vw means here, scrollbar and zoom included. It is read once: everything
+    // in the galley is sized in vw, so the recorded vw data does not depend on the window width.
+    const vWidth = (() => {
+      const probe = document.createElement("div");
+      probe.style.cssText = "position:absolute;visibility:hidden;width:100vw;height:0";
+      document.body.append(probe);
+      const w = probe.getBoundingClientRect().width;
+      probe.remove();
+      return w;
+    })()
+  </script>
+  <script id="5894" type="module" pinned="">
+    // The font comes from Google Fonts (network), not from a local() copy, so that everyone's
+    // measurements, and the player's, use the same font file. Roman and italic, at config.fontWeight and bold.
+    // `fontReady` resolves once the stylesheet and the faces actually used are loaded;
+    // cells that measure text wait for it (see `spanned`).
+    const fontFamily = config.fontFamily
+    // the faces in use, as the start of a font shorthand: roman and italic, at config.fontWeight and bold
+    const faces = ["", "italic "].flatMap((s) => [config.fontWeight, 700].map((w) => `${s}${w} `))
+    const fontReady = (async () => {
+      const link = document.createElement("link");
+      link.rel = "stylesheet";
+      // a weight range, not a list: Source Serif 4 is a variable font, so any config.fontWeight works
+      // (built from config.fontFamily: it must be a Google font with a wght axis)
+      link.href = `https://fonts.googleapis.com/css2?family=${fontFamily.replace(/ /g, "+")}:ital,wght@0,200..900;1,200..900&display=swap`;
+      const loaded = new Promise((resolve, reject) => {
+        link.onload = resolve;
+        link.onerror = () => reject(new Error(`Could not load the stylesheet for ${fontFamily}: ${link.href}`));
+      });
+      document.head.append(link);
+      invalidation.then(() => link.remove());
+      await loaded;
+      // px, the safest unit in the font shorthand; the sample text covers the latin subset
+      const sample = "AaBbCcDdEeFfGg’'“”—…";
+      await Promise.all(faces.map((f) => document.fonts.load(`${f}16px "${fontFamily}"`, sample)));
+      await document.fonts.ready;
+      if (!document.fonts.check(`${config.fontWeight} 16px "${fontFamily}"`, sample))
+        throw new Error(`${fontFamily} did not load`);
+      return fontFamily;
+    })()
+  </script>
+  <script id="5893" type="text/markdown">
+    ---
+    ## Notes on this piece
+    **What is different from the template.** The verses are two `ofld` (and two `para`) in one galley, laid out alike so that each spel of verse 2 stands where the same spel of verse 1 does, and the two overlap on the screen. Five *alternate* spels share the places of other spels (the `layout` cell). The score is not one linear score per para but a sequence (`scores`, with `cycleScores`), partly composed here from the recording's timings (`scoreFromTimings`) and partly *generated* by the player each time round (`nbks/data/generators.js`, with the engine's `options.generators`). The default reading-time scores of the template (`spelTime`) are not used: this piece is paced by a recording.
+
+    **Original and measurement.** The original page measured its spans with `offsetLeft`/`offsetTop` (whole pixels, at the window width of the day) at 2.3vw with the font's own line height. This notebook measures the bounding boxes in vw as the template does, with `lineHeight` 1.5, weight 400 and the optical size fixed at 14 (the original's followed the font size, about 21 in the 906px window it was measured in). The type is therefore a little wider than the original's: spels differ from the original's positions by up to 1.6 vw to the right, most by less, and by about 0.1 vw vertically.
+
+    **Check before you trust a change to the text.** Each of the two verses must have 25 spels, in the order of the 50 timings (the `scores` cell throws if a spel is not the recorded word).
+
+    Co-implemented with Claude Sonnet 5.5.
+  </script>
+</notebook>
