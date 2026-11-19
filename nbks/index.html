@@ -26,7 +26,7 @@
       }
 
       /* the type (family, size, weight, line height, ligatures, optical size) and the fade times
-         (--spel-fade, --char-fade, --field-fade) come from the config, through the engine's typeCss:
+         (--fade-in, --fade-out, --field-fade) come from the config, through the engine's typeCss:
          the same type the notebook measured the spels in */
       ${typeCss(config, "#field")}
 
@@ -47,21 +47,23 @@
       .spel {
         position: absolute;
         opacity: 0;
-        transition: all var(--spel-fade) ease-in-out;
+        transition: all var(--fade-out, 1.3s) ease-in-out;
       }
 
       .spel.visible {
         opacity: 1;
+        transition: all var(--fade-in, 1.3s) ease-in-out;
       }
 
       /* with charFades each spel is split into .char spans, which carry the fade (Uchaf: charFades is false) */
       .char {
         opacity: 0;
-        transition: all var(--char-fade) ease-in-out;
+        transition: all var(--fade-out, 1.3s) ease-in-out;
       }
 
       .char.visible {
         opacity: 1;
+        transition: all var(--fade-in, 1.3s) ease-in-out;
       }
     </style>
   </script>

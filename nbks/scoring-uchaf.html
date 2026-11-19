@@ -258,7 +258,7 @@
       }
 
       /* the type (family, size, weight, line height, ligatures, optical size) and the fade times
-         (--spel-fade, --char-fade, --field-fade) all come from the config, through the engine's
+         (--fade-in, --fade-out, --field-fade) all come from the config, through the engine's
          typeCss, and so are the same in the player, which calls typeCss with its own selector */
       ${typeCss(config, ".set")}
 
@@ -278,21 +278,23 @@
       .spel {
         position: absolute;
         opacity: 0;
-        transition: all var(--spel-fade) ease-in-out;
+        transition: all var(--fade-out, 1.3s) ease-in-out;
       }
 
       .spel.visible {
         opacity: 1;
+        transition: all var(--fade-in, 1.3s) ease-in-out;
       }
 
       /* with charFades each spel is split into .char spans (the engine's splitIntoChars), which carry the fade */
       .char {
         opacity: 0;
-        transition: all var(--char-fade) ease-in-out;
+        transition: all var(--fade-out, 1.3s) ease-in-out;
       }
 
       .char.visible {
         opacity: 1;
+        transition: all var(--fade-in, 1.3s) ease-in-out;
       }
 
       /* an "effect" other than "visible" in a score's settings (see Playback in scoring-template.html) is a class the
