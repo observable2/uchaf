@@ -9,7 +9,7 @@
 //   - in each verse the first 12 spels are six pairs (a modifier, then a noun: "low cloud",
 //     "nameless bay" ...) and the last 13 are the second stanza ("what gives us all we see? ...");
 //   - the two verses are laid out alike, so spel k of verse 2 is in the place of spel k of verse 1;
-//   - scores[TIMED[v]] is the timed read-in of verse v+1, which gives every spel its pause;
+//   - scores[TIMED[v]] is the timed read-in of verse v+1, which gives every spel its duration;
 //   - the spels "know?", "knowing", "reading", "ear" and "eye" are alternates that stand in the
 //     places of "see?", "thinking" (twice) and "mouth" (twice).
 //
@@ -27,10 +27,10 @@ const NOT_PAIRED = [["0:3", "6:3"], ["10:3"]];
 
 const pick = (list) => list[Math.floor(Math.random() * list.length)];
 
-// the verses of the context: their ids, and an item (id and its timed pause) for a position
+// the verses of the context: their ids, and an item (id and its timed duration) for a position
 const versesOf = ({ paras, scores }) => paras.slice(0, 2).map((ids, v) => {
-  const pauses = new Map(scores[TIMED[v]].map(({ id, pause }) => [id, pause]));
-  return { ids, item: (k) => ({ id: ids[k], pause: pauses.get(ids[k]) }) };
+  const durations = new Map(scores[TIMED[v]].map(({ id, duration }) => [id, duration]));
+  return { ids, item: (k) => ({ id: ids[k], duration: durations.get(ids[k]) }) };
 });
 
 // the id of the (unique) spel with this text; the alternates are found this way
@@ -39,7 +39,7 @@ const idOf = ({ spels }, string) => {
   throw new Error(`uchaf generators: no spel "${string}"`);
 };
 
-const toggles = (items) => items.map(({ id }) => ({ id, pause: 0 }));
+const toggles = (items) => items.map(({ id }) => ({ id, duration: 0 }));
 
 const generators = {
   // s1jjnn: the six modifiers and six nouns of a verse, each set shuffled and then paired off in
@@ -68,7 +68,7 @@ const generators = {
     const modifiers = shuffle(MODIFIERS), nouns = shuffle(NOUNS);
     const score = [];
     const add = (k) => {
-      if (prevFade) score.push({ id: other.ids[k], pause: 0 });
+      if (prevFade) score.push({ id: other.ids[k], duration: 0 });
       score.push(mine.item(k));
     };
     modifiers.forEach((m, i) => { add(m); add(nouns[i]); });
@@ -89,12 +89,12 @@ const generators = {
     do { j = pick(modifiers); n = pick(nouns); } while (j[0] === "feeling" && n[0] === "mouth");
     const score = [
       ...stanza.slice(0, 5),
-      { id: sense, pause: stanza[5].pause },
+      { id: sense, duration: stanza[5].duration },
       stanza[6], stanza[7],
-      { id: j[1], pause: stanza[8].pause },
-      { id: n[1], pause: stanza[9].pause },
+      { id: j[1], duration: stanza[8].duration },
+      { id: n[1], duration: stanza[9].duration },
       stanza[10], stanza[11],
-      { id: stanza[12].id, pause: stanza[12].pause + 200 },
+      { id: stanza[12].id, duration: stanza[12].duration + 200 },
     ];
     return [...score, ...toggles(score)];
   },

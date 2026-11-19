@@ -51,7 +51,7 @@ Both are additive, and documented in the engine's README ("Generated scores and 
   than in the original (most by less) and about 0.1 vw higher. Both verses and the alternates are measured together, so
   they still line up with one another.
 - **Ids.** `low-0`, `see-17`, `know-50` (a slug and the index) instead of `low_0`, `see?_17`, `know?_50`.
-- **Timing.** The same recorded pauses plus 200 ms, in milliseconds. The original waited 1.5 s before the first
+- **Timing.** The same recorded durations plus 200 ms, in milliseconds. The original waited 1.5 s before the first
   score and then played forever; the engine waits `interCycleMs` (3 s) first. The original's `play()` first
   switched off any visible spel; the player starts with every spel hidden, so the engine has no need to.
 - **Page.** The field is centred by the engine, not by a fixed width; the page colour (`#001f3f`) and cursor are the original's.
@@ -61,7 +61,7 @@ Both are additive, and documented in the engine's README ("Generated scores and 
   widths, other browsers, and the notebook in the Observable Desktop app. Checked in headless Chrome at 1200px: the
   notebook runs without cell errors; the player, from the dev server and from the built `dist/`, runs without errors,
   plays through cycles in which every spel is hidden again at the end; over 500 simulated cycles the generators
-  returned only existing spels with finite pauses.
+  returned only existing spels with finite durations.
 
 ## The engine
 

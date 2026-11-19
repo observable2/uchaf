@@ -73,7 +73,7 @@
     // The timing of a recorded reading of the poem: when each word starts and ends, in SECONDS, as the
     // original notebook had it (the 50 words of both verses, in text order; the first word starts 2.5 s
     // into the recording, which the score does not use). scoreFromTimings (the engine) turns them into
-    // the read-in scores of the cell below: each word's pause is the time to the start of the next.
+    // the read-in scores of the cell below: each word's duration is the time to the start of the next.
     const timings = [
           { start: 2.5, end: 2.93, word: "low" },
           { start: 3, end: 3.63, word: "cloud" },
@@ -129,12 +129,12 @@
   </script>
   <script id="5741" type="module" pinned="">
     // The score of the piece: scores.json is a sequence of scores that the cycle plays in turn (config.cycleScores).
-    // Each is an array of { id, pause } items (pause in ms), or the name of a generator (see nbks/data/generators.js),
+    // Each is an array of { id, duration } items (duration in ms), or the name of a generator (see nbks/data/generators.js),
     // which the player calls each time that score comes round, so a shuffled score is a new one every time.
     //
-    // The two read-ins use the timings of the recording: the pause of each word is the time to the start of
-    // the next, plus 200 ms (the original's "slower": 20 hundredths of a second added to every pause).
-    // The generators read their pauses from these two scores, so they must stay scores 0 and 3 (TIMED in generators.js).
+    // The two read-ins use the timings of the recording: the duration of each word is the time to the start of
+    // the next, plus 200 ms (the original's "slower": 20 hundredths of a second added to every duration).
+    // The generators read their durations from these two scores, so they must stay scores 0 and 3 (TIMED in generators.js).
     const [verse1, verse2] = paraList // the spel ids of the verses, in text order
     const readIn1 = scoreFromTimings(timings.slice(0, verse1.length), { ids: verse1, extraMs: 200 })
     const readIn2 = scoreFromTimings(timings.slice(verse1.length), { ids: verse2, extraMs: 200 })
@@ -187,7 +187,7 @@
     const piece = {
       "spels.json": Array.from(spels.entries()), // [[id, spel], ...]: the player builds a Map from it
       "paras.json": paraList, // [[spel ids of para 1], [para 2], ...] in text order
-      "scores.json": scores, // [[{id, pause}, ...] per para]
+      "scores.json": scores, // [[{id, duration}, ...] per para]
       "config.json": JSON.parse(JSON.stringify(config)),
       "measured.json": measuredWith(config)
     }
