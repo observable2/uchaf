@@ -244,8 +244,20 @@
       "config.json": JSON.parse(JSON.stringify(config)),
       "measured.json": measuredWith(config)
     }
+    // JSON with one record per line: each element of a top-level array,
+    // or each entry of a top-level object, on a line of its own and
+    // compact inside, so that the files diff by record. The same data
+    // always give the same text.
+    const toLines = (data) => {
+      const one = (value) => JSON.stringify(value)
+      if (Array.isArray(data) && data.length)
+        return "[\n" + data.map(one).join(",\n") + "\n]\n"
+      if (data && typeof data === "object" && !Array.isArray(data) && Object.keys(data).length)
+        return "{\n" + Object.entries(data).map(([key, value]) => `${one(key)}:${one(value)}`).join(",\n") + "\n}\n"
+      return one(data) + "\n"
+    }
     const links = Object.entries(piece).map(([name, data]) => {
-      const url = URL.createObjectURL(new Blob([JSON.stringify(data)], { type: "application/json" }))
+      const url = URL.createObjectURL(new Blob([toLines(data)], { type: "application/json" }))
       invalidation.then(() => URL.revokeObjectURL(url))
       return html`<a href="${url}" download="${name}">${name}</a>`
     })
