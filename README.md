@@ -22,7 +22,9 @@ conventions. Copies of the original page and notebook are in `raw/`
    `galley` cell (two `ofld`/`para`), the recorded timings in `timings`,
    the sequence of scores in `scores`, the settings in `config`.
 2. Download `spels.json`, `paras.json`, `scores.json`, `config.json` and
-   `measured.json` from the Export cell into `nbks/data/`.
+   `measured.json` from the Export cell into `nbks/data/`. (It also
+   offers `spels-raw.json`, a copy of `spels.json` as measured, to keep
+   if you edit `spels.json` by hand.)
    `nbks/index.html` (the player) reads them; `nbks/data/generators.js` is
    the player's code for the scores that are generated anew each time
    round.

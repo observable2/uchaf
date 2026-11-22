@@ -6,10 +6,10 @@
     #### *Uchaf*, by John Cayley
     Working notebook for this piece, made from the Scoring Template
     (version 1.0.0; the cells it shares with the template are synced to
-    version 1.3.0: `node ../scoringthespeltair/scripts/check-notebooks.mjs`
+    version 1.4.0: `node ../scoringthespeltair/scripts/check-notebooks.mjs`
     checks). It measures the verses in the `galley` cell, builds the
     scores (the recorded read-in, and the generated scores that the
-    player makes anew each time) and exports `spels.json`, `paras.json`,
+    player makes anew each time) and exports `spels.json` (and `spels-raw.json`), `paras.json`,
     `scores.json`, `config.json` and `measured.json` into `nbks/data/`
     (see Export). The template notebook documents the markup, the
     settings and playback.
@@ -246,9 +246,14 @@
     // player page that keeps its own CSS: pass it to mount() and the
     // player warns if its type differs from what the spels were
     // measured in.
+    // spels-raw.json: a copy of spels.json as the notebook makes it,
+    // for when spels.json is edited by hand (positions, text, html).
+    // Compare them (`diff spels-raw.json spels.json`) to see the edits.
+    const WITH_RAW = true
     const piece = {
       // [[id, spel], ...]: the player builds a Map from it
       "spels.json": Array.from(spels.entries()),
+      ...(WITH_RAW ? { "spels-raw.json": Array.from(spels.entries()) } : {}),
       // [[spel ids of para 1], [para 2], ...] in text order
       "paras.json": paraList,
       // the sequence of scores: arrays of { id, duration } items and
